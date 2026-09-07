@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cash Counter</title>
+  <meta name="description" content="ระบบนับเงินสดและตรวจสอบยอด POS บันทึกข้อมูลลง Google Sheets" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">฿</div>
+        <div>
+          <strong>Cash Counter</strong>
+          <span>POS Cash Check</span>
+        </div>
+      </div>
+
+      <nav>
+        <button class="nav-item active" data-view="counter">▣ <span>นับเงิน</span></button>
+        <button class="nav-item" data-view="history">↻ <span>ประวัติการนับ</span></button>
+      </nav>
+
+      <div class="sidebar-tip">
+        <div class="tip-icon">＋</div>
+        <strong>โหมดนับเงินเร็ว</strong>
+        <p>กด + เพื่อเพิ่มทีละ 1 ใบ/เหรียญ และกด − เมื่อต้องการลด</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">POS CASH CONTROL</p>
+          <h1 id="pageTitle">นับเงินสด</h1>
+          <p class="subtext">ตรวจสอบเงินในเครื่อง POS และบันทึกผลลง Google Sheets</p>
+        </div>
+        <div class="connection">
+          <span id="connectionDot"></span>
+          <span id="connectionText">กำลังตรวจสอบ...</span>
+        </div>
+      </header>
+
+      <section id="counterView">
+        <div class="hero-grid">
+          <div class="card expected-card">
+            <div>
+              <span class="label">ยอดที่ระบบควรมี</span>
+              <h2><span id="expectedDisplay">0.00</span> <small>บาท</small></h2>
+              <p>ใช้สำหรับตรวจสอบเงินขาด / เกิน</p>
+            </div>
+            <label class="expected-input">
+              <span>ยอดที่ควรมี</span>
+              <input id="expectedInput" type="number" min="0" step="0.01" placeholder="เช่น 6135" />
+            </label>
+          </div>
+
+          <div class="card total-card">
+            <span class="label">เงินสดที่นับได้</span>
+            <div class="big-total"><span id="grandTotal">0.00</span><small>บาท</small></div>
+            <div class="status-pill neutral" id="differenceStatus">ยังไม่ได้ตั้งยอดที่ควรมี</div>
+          </div>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-card"><span>💵</span><div><small>ธนบัตร</small><strong id="banknoteTotal">0.00 บาท</strong><em id="banknoteCount">0 ใบ</em></div></div>
+          <div class="summary-card"><span>🪙</span><div><small>เหรียญ</small><strong id="coinTotal">0.00 บาท</strong><em id="coinCount">0 เหรียญ</em></div></div>
+          <div class="summary-card"><span>🔢</span><div><small>จำนวนทั้งหมด</small><strong id="pieceTotal">0 ชิ้น</strong><em>ธนบัตร + เหรียญ</em></div></div>
+          <div class="summary-card"><span>⚖️</span><div><small>ขาด / เกิน</small><strong id="difference">—</strong><em id="differenceHint">รอเทียบยอด</em></div></div>
+        </div>
+
+        <div class="section-head">
+          <div>
+            <h2>นับจำนวนเงิน</h2>
+            <p>กด + / − หรือพิมพ์จำนวนโดยตรง</p>
+          </div>
+          <button class="ghost-btn" id="clearBtn">ล้างทั้งหมด</button>
+        </div>
+
+        <div class="money-section">
+          <div class="section-title"><span>ธนบัตร</span><small>BAHT NOTES</small></div>
+          <div class="money-grid" id="banknotes"></div>
+        </div>
+
+        <div class="money-section">
+          <div class="section-title"><span>เหรียญ</span><small>BAHT COINS</small></div>
+          <div class="money-grid" id="coins"></div>
+        </div>
+
+        <div class="save-panel card">
+          <div class="save-main">
+            <div>
+              <span class="label">บันทึกผลการนับ</span>
+              <h3>พร้อมบันทึกลง Google Sheets</h3>
+              <p id="saveMessage">กรอกหมายเหตุได้ถ้าต้องการ เช่น เงินสดหน้าร้าน / กะเช้า</p>
+            </div>
+            <input id="noteInput" type="text" maxlength="200" placeholder="หมายเหตุ (ถ้ามี)" />
+          </div>
+          <button class="primary-btn" id="saveBtn">บันทึกยอด <span>→</span></button>
+        </div>
+      </section>
+
+      <section id="historyView" class="hidden">
+        <div class="history-toolbar">
+          <div>
+            <h2>ประวัติการนับเงิน</h2>
+            <p>ข้อมูลล่าสุดจาก Google Sheets</p>
+          </div>
+          <button class="primary-btn small" id="refreshHistory">รีเฟรช</button>
+        </div>
+
+        <div class="history-stats">
+          <div class="summary-card"><span>📅</span><div><small>รายการทั้งหมด</small><strong id="historyCount">0 รายการ</strong></div></div>
+          <div class="summary-card"><span>💰</span><div><small>ยอดล่าสุด</small><strong id="latestTotal">—</strong></div></div>
+          <div class="summary-card"><span>⚠️</span><div><small>รายการขาด/เกิน</small><strong id="issueCount">0 รายการ</strong></div></div>
+        </div>
+
+        <div class="card table-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>วันที่ / เวลา</th>
+                  <th>หมายเหตุ</th>
+                  <th>เงินทั้งหมด</th>
+                  <th>ธนบัตร</th>
+                  <th>เหรียญ</th>
+                  <th>ควรมี</th>
+                  <th>ขาด / เกิน</th>
+                  <th>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody">
+                <tr><td colspan="8" class="empty">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <footer>Cash Counter • Google Sheets Storage</footer>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
