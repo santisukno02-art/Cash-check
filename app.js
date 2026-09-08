@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRQdBT_exVgZvQLP-tgtiVxO4Oebp5O_u9QngiC8gp_wnWZX0Ot3kaoFkwAa7vdowd/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgAUN4mWK2qmZKEO8X43nwVleaelKzPJbhv7DI5SdoVGCdURkRPTgscZEGi7G5AkgC/exec";
 
 const DENOMS = [
   {v:1000,label:"1,000",unit:"ใบ",type:"note"},
@@ -102,9 +102,10 @@ async function apiGet(q){
   return res.json();
 }
 async function apiPost(data){
-  const res=await fetch(GOOGLE_SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(data)});
-  if(!res.ok)throw new Error("บันทึกข้อมูลไม่สำเร็จ");
-  return res.json();
+  const res=await fetch(GOOGLE_SCRIPT_URL,{method:"POST",redirect:"follow",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(data)});
+  const text=await res.text();
+  if(!res.ok)throw new Error(`บันทึกข้อมูลไม่สำเร็จ (HTTP ${res.status})`);
+  try{return JSON.parse(text)}catch{throw new Error("Google Apps Script ส่งข้อมูลกลับมาไม่ใช่ JSON — ตรวจสอบการ Deploy Web App")};
 }
 
 async function checkConnection(){
@@ -137,7 +138,7 @@ async function save(){
     toast("บันทึกข้อมูลเรียบร้อย ✓");
     $("note").value="";
     loadHistory();
-  }catch(e){toast(e.message,true)}
+  }catch(e){console.error("SAVE ERROR",e);toast(e.message||"บันทึกข้อมูลไม่สำเร็จ",true)}
   finally{$("saveBtn").disabled=false;$("saveBtn").innerHTML='บันทึกยอด <span>→</span>'}
 }
 
