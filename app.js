@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyQKbsH2PEHgXJv2DkweNnh9B10T0N1pWWUs-LBl9Fe6qBqmc4lCQZ8ZB_wO6lrd2MW/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz44PT5MStoFDfdGvQxuLEtYUZ06NWrcUs56KA6R2RqiS7zjVz2EYZocX4cg6axGYIr/exec";
 
 const DENOMS = [
   {v:1000,label:"1,000",unit:"ใบ",type:"note"},
