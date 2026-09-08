@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNEQnnd7qNLsFJ6x4M46oKy8q9rhAmlLtck-9g6dn4LI0Ntmgailf4BqQeTYVVbDIE/exec";
 
 const DENOMS = [
   {v:1000,label:"1,000",unit:"ใบ",type:"note"},
