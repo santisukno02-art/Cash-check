@@ -1,0 +1,14 @@
+{
+  "name": "คิดเงินให้เฮง - Cash Counter",
+  "short_name": "คิดเงินให้เฮง",
+  "description": "ระบบตรวจนับเงินสด แยกรอบที่ 1 และรอบที่ 2 พร้อมยอดรวม",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F7F7F9",
+  "theme_color": "#A874F5",
+  "orientation": "portrait",
+  "icons": [
+    {"src":"./icons/icon-192.png","sizes":"192x192","type":"image/png"},
+    {"src":"./icons/icon-512.png","sizes":"512x512","type":"image/png"}
+  ]
+}
