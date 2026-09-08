@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNEQnnd7qNLsFJ6x4M46oKy8q9rhAmlLtck-9g6dn4LI0Ntmgailf4BqQeTYVVbDIE/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyQKbsH2PEHgXJv2DkweNnh9B10T0N1pWWUs-LBl9Fe6qBqmc4lCQZ8ZB_wO6lrd2MW/exec";
 
 const DENOMS = [
   {v:1000,label:"1,000",unit:"ใบ",type:"note"},
@@ -123,7 +123,13 @@ async function save(){
 
   const counts1={},counts2={};
   DENOMS.forEach(d=>{counts1[String(d.v)]=rounds[1][String(d.v)];counts2[String(d.v)]=rounds[2][String(d.v)];});
-  const payload={action:"save",note:$("note").value.trim(),round1Total:r1,round2Total:r2,grandTotal:r1+r2,round1Target:target,round1Difference:target===null?null:r1-target,counts1,counts2};
+  const calcRound=(r)=>{
+    const banknote=DENOMS.filter(d=>d.type==="note").reduce((sum,d)=>sum+d.v*rounds[r][String(d.v)],0);
+    const coin=DENOMS.filter(d=>d.type==="coin").reduce((sum,d)=>sum+d.v*rounds[r][String(d.v)],0);
+    return {banknoteTotal:banknote,coinTotal:coin,total:banknote+coin,counts:r===1?counts1:counts2};
+  };
+  const round1=calcRound(1),round2=calcRound(2);
+  const payload={action:"save",note:$("note").value.trim(),round1Target:target,round1Total:r1,round2Total:r2,grandTotal:r1+r2,round1,round2,counts1,counts2};
   $("saveBtn").disabled=true;$("saveBtn").textContent="กำลังบันทึก...";
   try{
     const result=await apiPost(payload);
