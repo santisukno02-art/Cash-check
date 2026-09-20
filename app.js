@@ -1,172 +1,72 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwSCRVk13q3CEXXDEAX9fy6UfnkgY1x67P9biIDe4dqeIskfpgg8jMqSkAW3ZYsvAcF/exec";
-
-const DENOMS = [
-  {v:1000,label:"1,000",unit:"ใบ",type:"note"},
-  {v:500,label:"500",unit:"ใบ",type:"note"},
-  {v:100,label:"100",unit:"ใบ",type:"note"},
-  {v:50,label:"50",unit:"ใบ",type:"note"},
-  {v:20,label:"20",unit:"ใบ",type:"note"},
-  {v:10,label:"10",unit:"เหรียญ",type:"coin"},
-  {v:5,label:"5",unit:"เหรียญ",type:"coin"},
-  {v:2,label:"2",unit:"เหรียญ",type:"coin"},
-  {v:1,label:"1",unit:"เหรียญ",type:"coin"},
-  {v:.50,label:"0.50",unit:"เหรียญ",type:"coin"},
-  {v:.25,label:"0.25",unit:"เหรียญ",type:"coin"}
-];
-
-const rounds = {
-  1:Object.fromEntries(DENOMS.map(d=>[String(d.v),0])),
-  2:Object.fromEntries(DENOMS.map(d=>[String(d.v),0]))
-};
-
-const $=id=>document.getElementById(id);
-const money=n=>Number(n||0).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
-
-function renderRound(round){
-  const root=$(`round${round}List`);
-  root.innerHTML="";
-  let lastType="";
-  DENOMS.forEach(d=>{
-    if(lastType!==d.type){
-      const title=document.createElement("div");
-      title.className="list-label";
-      title.textContent=d.type==="note"?"ธนบัตร":"เหรียญ";
-      root.appendChild(title);
-      lastType=d.type;
-    }
-    const row=document.createElement("div");
-    row.className="money-row";
-    row.innerHTML=`
-      <div class="denom">${d.label}<span class="unit">${d.unit}</span></div>
-      <div class="row-amount" id="amount-${round}-${d.v}">0.00 บาท</div>
-      <div class="counter">
-        <button data-round="${round}" data-v="${d.v}" data-act="minus">−</button>
-        <input type="number" min="0" step="1" value="0" data-round="${round}" data-v="${d.v}">
-        <button class="plus" data-round="${round}" data-v="${d.v}" data-act="plus">+</button>
-      </div>`;
-    root.appendChild(row);
-  });
+const GOOGLE_SCRIPT_URL="https://script.google.com/macros/s/AKfycbwSCRVk13q3CEXXDEAX9fy6UfnkgY1x67P9biIDe4dqeIskfpgg8jMqSkAW3ZYsvAcF/exec",SESSION_MS=3600000;
+const DENOMS=[{v:1000,l:"1,000",u:"ใบ",t:"note"},{v:500,l:"500",u:"ใบ",t:"note"},{v:100,l:"100",u:"ใบ",t:"note"},{v:50,l:"50",u:"ใบ",t:"note"},{v:20,l:"20",u:"ใบ",t:"note"},{v:10,l:"10",u:"เหรียญ",t:"coin"},{v:5,l:"5",u:"เหรียญ",t:"coin"},{v:2,l:"2",u:"เหรียญ",t:"coin"},{v:1,l:"1",u:"เหรียญ",t:"coin"},{v:.5,l:"0.50",u:"เหรียญ",t:"coin"},{v:.25,l:"0.25",u:"เหรียญ",t:"coin"}],rounds={1:Object.fromEntries(DENOMS.map(d=>[d.v,0])),2:Object.fromEntries(DENOMS.map(d=>[d.v,0]))};
+const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c])),money=n=>Number(n||0).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});let profiles=[],adminToken="",photoData="",active=null,tick,pin="",loadingProfiles=false;
+function device(){let x=localStorage.getItem("cashCheckDeviceId");if(!x){x=crypto.randomUUID();localStorage.setItem("cashCheckDeviceId",x)}return x}
+function hidden(id,on){$(id).classList.toggle("hidden",on)}
+function toast(m,b){let t=$("toast");t.textContent=m;t.className="toast show"+(b?" error":"");setTimeout(()=>t.className="toast",2800)}
+async function get(p){let r=await fetch(`${GOOGLE_SCRIPT_URL}?${new URLSearchParams(p)}`,{cache:"no-store"});if(!r.ok)throw Error();return r.json()}
+async function post(p){let r=await fetch(GOOGLE_SCRIPT_URL,{method:"POST",redirect:"follow",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(p)}),t=await r.text();if(!r.ok)throw Error();return JSON.parse(t)}
+async function loadProfiles(){if(loadingProfiles)return;loadingProfiles=true;$("profiles").innerHTML='<div class="profile-loading"><span class="loading-spinner" aria-hidden="true"></span><span>กำลังโหลด User</span></div>';try{let r=await get({action:"profiles"});if(!r.ok)throw Error(r.message);profiles=(r.profiles||[]).filter(p=>p.role!=='admin');renderProfiles()}catch{$("profiles").innerHTML='<div class="profile-load-fail"><span>โหลด User ไม่สำเร็จ</span><button id="retryProfilesBtn" class="retry-btn" type="button">ลองอีกครั้ง</button></div>'}finally{loadingProfiles=false}}
+function renderProfiles(){$("profiles").innerHTML=profiles.map(p=>`<button class="profile-card pressable" data-profile="${esc(p.id)}"><img src="${esc(p.photoUrl||'./icons/icon-192.png')}" alt=""><span>${esc(p.name)}</span></button>`).join("")||'<p class="load-error">ยังไม่มีผู้ใช้</p>'}
+async function choose(id){let p=profiles.find(x=>x.id===id);if(!p)return;if(p.role==='admin')return openPin();let buttons=document.querySelectorAll("[data-profile]");buttons.forEach(b=>b.disabled=true);try{let r=await post({action:"login",profileId:id,deviceId:device()});if(!r.ok)throw Error(r.message);start(r.session,p.name)}catch(e){toast(e.message||"เข้าสู่ระบบไม่ได้",true)}finally{buttons.forEach(b=>b.disabled=false)}}
+function start(s,name){active={...s,name};sessionStorage.setItem("cashCheckSession",JSON.stringify(active));$("activeUserText").textContent="ผู้ใช้งาน: "+name;hidden("profileScreen",true);hidden("counterScreen",false);timer();clearInterval(tick);tick=setInterval(timer,1000)}
+function timer(){if(!active)return;let n=new Date(active.expiresAt)-Date.now();if(n<=0){end("timeout");return}n=Math.ceil(n/1000);$("sessionTimer").textContent=`${String(Math.floor(n/60)).padStart(2,"0")}:${String(n%60).padStart(2,"0")}`}
+async function end(mode="manual"){let s=active;if(!s)return;active=null;clearInterval(tick);sessionStorage.removeItem("cashCheckSession");hidden("counterScreen",true);hidden("profileScreen",false);$("sessionTimer").textContent="60:00";try{await post({action:"logout",userId:s.userId,deviceId:s.deviceId,loginAt:s.loginAt})}catch{}if(mode==="timeout")toast("ครบเวลา 1 ชั่วโมงแล้ว กรุณาเลือกผู้ใช้ใหม่")}
+async function restore(){let raw=sessionStorage.getItem("cashCheckSession");if(!raw)return;try{let s=JSON.parse(raw),r=await get({action:"session",userId:s.userId,deviceId:s.deviceId,loginAt:s.loginAt});if(r.ok&&r.active)start({...s,expiresAt:r.expiresAt},s.name);else{sessionStorage.removeItem("cashCheckSession");hidden("counterScreen",true);hidden("profileScreen",false)}}catch{sessionStorage.removeItem("cashCheckSession");hidden("counterScreen",true);hidden("profileScreen",false)}}
+function showPin(){$("pinDots").innerHTML=pin?"● ".repeat(pin.length):"<span>กรอกรหัส</span>"}function openPin(){pin="";showPin();hidden("pinModal",false)}function pressPin(key){if(key==="clear")pin="";else if(key==="back")pin=pin.slice(0,-1);else if(pin.length<12)pin+=key;showPin()}
+async function checkPin(){if(!pin)return toast("กรุณากดรหัส Admin",true);let b=$("verifyPinBtn");b.disabled=true;b.classList.add("is-loading");b.dataset.originalText=b.textContent;b.textContent="กำลังตรวจสอบ...";try{let r=await post({action:"admin-login",pin});if(!r.ok)throw Error(r.message);adminToken=r.token;pin="";hidden("pinModal",true);resetForm();showManager();hidden("managerModal",false)}catch(e){pin="";showPin();toast(e.message||"รหัสไม่ถูกต้อง",true)}finally{b.disabled=false;b.classList.remove("is-loading");b.textContent=b.dataset.originalText||"ยืนยัน"}}
+function showManager(){$("manageProfilesList").innerHTML=profiles.map(p=>`<div class="manage-item"><img src="${esc(p.photoUrl||'./icons/icon-192.png')}" alt=""><span>${esc(p.name)}${p.role==='admin'?' (Admin)':''}</span>${p.role==='admin'?'':`<button data-edit="${esc(p.id)}">แก้ไข</button><button class="delete" data-delete="${esc(p.id)}">ลบ</button>`}</div>`).join("")}
+function resetForm(){$("profileForm").reset();$("profileId").value="";photoData="";$("photoPreview").textContent="ไม่มีรูปใหม่"}
+function edit(id){let p=profiles.find(x=>x.id===id);if(!p)return;$("profileId").value=p.id;$("profileName").value=p.name;photoData="";$("photoPreview").innerHTML=`<img src="${esc(p.photoUrl)}" alt="">รูปปัจจุบัน`}
+async function save(e){e.preventDefault();let b=e.submitter||$("profileForm").querySelector("button[type=submit]");b.disabled=true;b.classList.add("is-loading");let old=b.textContent;b.textContent="กำลังบันทึก...";try{let r=await post({action:"profile-save",token:adminToken,id:$("profileId").value,name:$("profileName").value.trim(),photoData});if(!r.ok)throw Error(r.message);profiles=(r.profiles||[]).filter(p=>p.role!=='admin');renderProfiles();showManager();resetForm();toast("บันทึกผู้ใช้แล้ว")}catch(e){toast(e.message||"บันทึกไม่ได้",true)}finally{b.disabled=false;b.classList.remove("is-loading");b.textContent=old}}
+async function del(id){let p=profiles.find(x=>x.id===id);if(!p||!confirm(`ลบผู้ใช้ ${p.name} ใช่หรือไม่?`))return;try{let r=await post({action:"profile-delete",token:adminToken,id});if(!r.ok)throw Error(r.message);profiles=(r.profiles||[]).filter(p=>p.role!=='admin');renderProfiles();showManager();toast("ลบผู้ใช้แล้ว")}catch(e){toast(e.message||"ลบไม่ได้",true)}}
+function photo(f){if(!f)return;if(f.size>1048576)return toast("รูปต้องไม่เกิน 1 MB",true);let r=new FileReader;r.onload=()=>{photoData=r.result;$("photoPreview").innerHTML=`<img src="${r.result}" alt="">รูปใหม่พร้อมบันทึก`};r.readAsDataURL(f)}
+let numberPad={type:null,round:null,v:null,original:"",value:""};
+function openNumberPad(type,round,v){
+  numberPad={type,round,v,original:"",value:""};
+  if(type==="target") numberPad.original=$("round1Target").value||"";
+  else numberPad.original=String(rounds[round][v]||"");
+  numberPad.value=numberPad.original;
+  $("numberPadTitle").textContent=type==="target"?"กำหนดยอดเงินรอบที่ 1":`จำนวน ${DENOMS.find(d=>String(d.v)===String(v))?.l||v} ${DENOMS.find(d=>String(d.v)===String(v))?.u||""}`;
+  updateNumberPadDisplay();
+  hidden("numberPadModal",false);
 }
-
-function getRoundTotal(round){
-  return DENOMS.reduce((sum,d)=>sum+d.v*rounds[round][String(d.v)],0);
+function updateNumberPadDisplay(){$("numberPadValue").textContent=numberPad.value===""?"":Number(numberPad.value).toLocaleString("th-TH");}
+function pressNumberKey(key){
+  if(key==="back") numberPad.value=numberPad.value.slice(0,-1);
+  else if(/^\d$/.test(key)){if(numberPad.value==="0")numberPad.value=key;else if(numberPad.value.length<12)numberPad.value+=key;}
+  updateNumberPadDisplay();
 }
-
-function update(){
-  [1,2].forEach(r=>{
-    const total=getRoundTotal(r);
-    $(`round${r}Total`).textContent=money(total);
-    $(`break${r}`).textContent=`${money(total)} บาท`;
-    DENOMS.forEach(d=>{
-      $(`amount-${r}-${d.v}`).textContent=`${money(d.v*rounds[r][String(d.v)])} บาท`;
-    });
-  });
-  const total=getRoundTotal(1)+getRoundTotal(2);
-  $("grandTotal").textContent=money(total);
-  const target=Number($("round1Target").value||0);
-  $("round1Target").dataset.difference = target ? (getRoundTotal(1)-target) : "";
+function commitNumberPad(){
+  let n=numberPad.value===""?"":String(Math.max(0,parseInt(numberPad.value,10)||0));
+  if(numberPad.type==="target") $("round1Target").value=n;
+  else {rounds[numberPad.round][numberPad.v]=n===""?0:parseInt(n,10)||0;document.querySelector(`input[data-round=\"${numberPad.round}\"][data-v=\"${numberPad.v}\"]`).value=n===""?0:n;update()}
+  hidden("numberPadModal",true);
+  numberPad={type:null,round:null,v:null,original:"",value:""};
 }
-
-function bind(){
-  document.addEventListener("click",e=>{
-    const b=e.target.closest("[data-act]");
-    if(!b)return;
-    const r=b.dataset.round,k=b.dataset.v;
-    rounds[r][k]=Math.max(0,rounds[r][k]+(b.dataset.act==="plus"?1:-1));
-    const input=document.querySelector(`input[data-round="${r}"][data-v="${k}"]`);
-    if(input)input.value=rounds[r][k];
-    update();
-  });
-  document.addEventListener("input",e=>{
-    if(e.target.matches("input[data-round]")){
-      const r=e.target.dataset.round,k=e.target.dataset.v;
-      rounds[r][k]=Math.max(0,Math.floor(Number(e.target.value)||0));
-      update();
-    }
-  });
-  $("round1Target").addEventListener("input",update);
-  $("clearBtn").addEventListener("click",()=>{
-    if(!confirm("ต้องการล้างจำนวนเงินทั้ง 2 รอบใช่หรือไม่?"))return;
-    [1,2].forEach(r=>DENOMS.forEach(d=>rounds[r][String(d.v)]=0));
-    $("round1Target").value=""; $("note").value="";
-    document.querySelectorAll("input[data-round]").forEach(x=>x.value=0);
-    update();
-  });
-  $("saveBtn").addEventListener("click",save);
-  $("refreshBtn").addEventListener("click",loadHistory);
-}
-
-async function apiGet(q){
-  const res=await fetch(`${GOOGLE_SCRIPT_URL}?${q}`);
-  if(!res.ok)throw new Error("เชื่อมต่อ Google Sheets ไม่สำเร็จ");
-  return res.json();
-}
-async function apiPost(data){
-  const res=await fetch(GOOGLE_SCRIPT_URL,{method:"POST",redirect:"follow",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(data)});
-  const text=await res.text();
-  if(!res.ok)throw new Error(`บันทึกข้อมูลไม่สำเร็จ (HTTP ${res.status})`);
-  try{return JSON.parse(text)}catch{throw new Error("Google Apps Script ส่งข้อมูลกลับมาไม่ใช่ JSON — ตรวจสอบการ Deploy Web App")};
-}
-
-async function checkConnection(){
-  if(GOOGLE_SCRIPT_URL.includes("PASTE_YOUR")){
-    $("connectionText").textContent="ยังไม่ได้เชื่อมต่อ";
-    return;
-  }
-  try{await apiGet("action=ping");$("dot").classList.add("on");$("connectionText").textContent="ออนไลน์";}
-  catch{$("connectionText").textContent="เชื่อมต่อไม่ได้";}
-}
-
-async function save(){
-  if(GOOGLE_SCRIPT_URL.includes("PASTE_YOUR"))return toast("ใส่ Google Apps Script URL ใน app.js ก่อน",true);
-  const r1=getRoundTotal(1),r2=getRoundTotal(2),target=$("round1Target").value===""?null:Number($("round1Target").value);
-  if(r1<=0&&r2<=0)return toast("กรุณากรอกจำนวนเงินก่อน",true);
-
-  const counts1={},counts2={};
-  DENOMS.forEach(d=>{counts1[String(d.v)]=rounds[1][String(d.v)];counts2[String(d.v)]=rounds[2][String(d.v)];});
-  const calcRound=(r)=>{
-    const banknote=DENOMS.filter(d=>d.type==="note").reduce((sum,d)=>sum+d.v*rounds[r][String(d.v)],0);
-    const coin=DENOMS.filter(d=>d.type==="coin").reduce((sum,d)=>sum+d.v*rounds[r][String(d.v)],0);
-    return {banknoteTotal:banknote,coinTotal:coin,total:banknote+coin,counts:r===1?counts1:counts2};
-  };
-  const round1=calcRound(1),round2=calcRound(2);
-  const payload={action:"save",note:$("note").value.trim(),round1Target:target,round1Total:r1,round2Total:r2,grandTotal:r1+r2,round1,round2,counts1,counts2};
-  $("saveBtn").disabled=true;$("saveBtn").textContent="กำลังบันทึก...";
-  try{
-    const result=await apiPost(payload);
-    if(!result.ok)throw new Error(result.message||"บันทึกไม่สำเร็จ");
-    toast("บันทึกข้อมูลเรียบร้อย ✓");
-    $("note").value="";
-    loadHistory();
-  }catch(e){console.error("SAVE ERROR",e);toast(e.message||"บันทึกข้อมูลไม่สำเร็จ",true)}
-  finally{$("saveBtn").disabled=false;$("saveBtn").innerHTML='บันทึกยอด <span>→</span>'}
-}
-
-function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
-
-async function loadHistory(){
-  if(GOOGLE_SCRIPT_URL.includes("PASTE_YOUR"))return;
-  try{
-    const data=await apiGet("action=history&limit=20");
-    if(!data.ok)throw new Error(data.message);
-    const list=$("historyList");
-    if(!data.rows.length){list.innerHTML='<div class="empty">ยังไม่มีข้อมูล</div>';return}
-    list.innerHTML=data.rows.map(r=>`
-      <div class="history-item">
-        <div class="history-top">
-          <div><div class="history-date">${escapeHtml(r.date)} ${escapeHtml(r.time)}</div><div style="font-size:10px;margin-top:3px">${escapeHtml(r.note||"ไม่ระบุหมายเหตุ")}</div></div>
-          <div class="history-total">${money(r.grandTotal)} บาท</div>
-        </div>
-        <div class="history-meta"><span>รอบ 1: ${money(r.round1Total)} ฿</span><span>รอบ 2: ${money(r.round2Total)} ฿</span></div>
-      </div>`).join("");
-  }catch(e){$("historyList").innerHTML=`<div class="empty">โหลดข้อมูลไม่ได้</div>`}
-}
-
-function toast(msg,error=false){
-  const t=$("toast");t.textContent=msg;t.className=`toast show${error?" error":""}`;
-  setTimeout(()=>t.className="toast",2600);
-}
-
-renderRound(1);renderRound(2);bind();update();checkConnection();loadHistory();
-
-if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js"));
+function cancelNumberPad(){hidden("numberPadModal",true);numberPad={type:null,round:null,v:null,original:"",value:""}}
+function render(r){let root=$(`round${r}List`),last="";root.innerHTML="";DENOMS.forEach(d=>{if(last!==d.t){last=d.t;root.insertAdjacentHTML("beforeend",`<div class="list-label">${last==='note'?'ธนบัตร':'เหรียญ'}</div>`)}root.insertAdjacentHTML("beforeend",`<div class="money-row"><div class="denom">${d.l}<span class="unit">${d.u}</span></div><div class="row-amount" id="amount-${r}-${d.v}">0.00 บาท</div><div class="counter"><button class="pressable" data-round="${r}" data-v="${d.v}" data-act="-" type="button">−</button><input type="text" inputmode="none" readonly value="0" data-numpad="count" data-round="${r}" data-v="${d.v}" aria-label="จำนวน ${d.l} ${d.u}"><button class="plus pressable" data-round="${r}" data-v="${d.v}" data-act="+" type="button">+</button></div></div>`)})}
+function total(r){return DENOMS.reduce((s,d)=>s+d.v*rounds[r][d.v],0)}
+function update(){[1,2].forEach(r=>{let t=total(r);$(`round${r}Total`).textContent=money(t);$(`break${r}`).textContent=money(t)+" บาท";DENOMS.forEach(d=>$(`amount-${r}-${d.v}`).textContent=money(d.v*rounds[r][d.v])+" บาท")});$("grandTotal").textContent=money(total(1)+total(2))}
+function clear(){[1,2].forEach(r=>DENOMS.forEach(d=>rounds[r][d.v]=0));$("round1Target").value="";document.querySelectorAll("input[data-round]").forEach(x=>x.value=0);update()}
+document.addEventListener("click",e=>{
+  let key=e.target.closest("[data-pin]");if(key)return pressPin(key.dataset.pin);
+  let retry=e.target.closest("#retryProfilesBtn");if(retry)return loadProfiles();
+  let num=e.target.closest("[data-numpad]");if(num)return openNumberPad(num.dataset.numpad,num.dataset.round,num.dataset.v);
+  let numKey=e.target.closest("[data-num-key]");if(numKey){pressNumberKey(numKey.dataset.numKey);return}
+  if(e.target.closest("#numberPadConfirm"))return commitNumberPad();
+  if(e.target.closest("#numberPadCancel"))return cancelNumberPad();
+  let p=e.target.closest("[data-profile]");if(p)return choose(p.dataset.profile);
+  let b=e.target.closest("[data-act]");if(b){let r=b.dataset.round,v=b.dataset.v;rounds[r][v]=Math.max(0,rounds[r][v]+(b.dataset.act==='+'?1:-1));document.querySelector(`input[data-round="${r}"][data-v="${v}"]`).value=rounds[r][v];b.classList.remove("tap");void b.offsetWidth;b.classList.add("tap");return update()}
+  if(e.target.dataset.edit)return edit(e.target.dataset.edit);
+  if(e.target.dataset.delete)return del(e.target.dataset.delete);
+  if(e.target.dataset.close)return hidden(e.target.dataset.close,true);
+});
+$("manageProfilesBtn").onclick=openPin;
+$("verifyPinBtn").onclick=checkPin;
+$("profileForm").onsubmit=save;
+$("profilePhoto").onchange=e=>photo(e.target.files[0]);
+$("resetProfileBtn").onclick=resetForm;
+$("logoutBtn").onclick=()=>end("manual");
+$("clearBtn").onclick=()=>confirm("ต้องการล้างจำนวนเงินทั้ง 2 รอบใช่หรือไม่?")&&clear();
+render(1);render(2);update();loadProfiles();restore();

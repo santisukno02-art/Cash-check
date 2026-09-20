@@ -1,7 +1,7 @@
 {
-  "name": "คิดเงินให้เฮง - Cash Counter",
-  "short_name": "คิดเงินให้เฮง",
-  "description": "ระบบตรวจนับเงินสด แยกรอบที่ 1 และรอบที่ 2 พร้อมยอดรวม",
+  "name": "จ๋าช่วยคิดเงินให้ถูก",
+  "short_name": "คิดเงินให้ถูก",
+  "description": "จ๋าช่วยคิดเงินให้ถูก — ระบบตรวจนับเงินสด",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#F7F7F9",

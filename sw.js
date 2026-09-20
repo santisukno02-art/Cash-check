@@ -1,4 +1,4 @@
-const CACHE="cash-counter-v2";
+const CACHE="cash-counter-users-v1";
 const ASSETS=["./","./index.html","./style.css","./app.js","./manifest.json","./logo.jpg","./icons/icon-192.png","./icons/icon-512.png"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));
