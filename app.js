@@ -1,5 +1,5 @@
 const GOOGLE_SCRIPT_URL="https://script.google.com/macros/s/AKfycbwSCRVk13q3CEXXDEAX9fy6UfnkgY1x67P9biIDe4dqeIskfpgg8jMqSkAW3ZYsvAcF/exec",SESSION_MS=3600000;
-const DENOMS=[{v:1000,l:"1,000",u:"ใบ",t:"note"},{v:500,l:"500",u:"ใบ",t:"note"},{v:100,l:"100",u:"ใบ",t:"note"},{v:50,l:"50",u:"ใบ",t:"note"},{v:20,l:"20",u:"ใบ",t:"note"},{v:10,l:"10",u:"เหรียญ",t:"coin"},{v:5,l:"5",u:"เหรียญ",t:"coin"},{v:2,l:"2",u:"เหรียญ",t:"coin"},{v:1,l:"1",u:"เหรียญ",t:"coin"},{v:.5,l:"0.50",u:"เหรียญ",t:"coin"},{v:.25,l:"0.25",u:"เหรียญ",t:"coin"}],rounds={1:Object.fromEntries(DENOMS.map(d=>[d.v,0])),2:Object.fromEntries(DENOMS.map(d=>[d.v,0]))};
+const DENOMS=[{v:1000,l:"1,000",u:"",t:"note"},{v:500,l:"500",u:"",t:"note"},{v:100,l:"100",u:"",t:"note"},{v:50,l:"50",u:"",t:"note"},{v:20,l:"20",u:"",t:"note"},{v:10,l:"10",u:"เหรียญ",t:"coin"},{v:5,l:"5",u:"เหรียญ",t:"coin"},{v:2,l:"2",u:"เหรียญ",t:"coin"},{v:1,l:"1",u:"เหรียญ",t:"coin"},{v:.5,l:"0.50",u:"เหรียญ",t:"coin"},{v:.25,l:"0.25",u:"เหรียญ",t:"coin"}],rounds={1:Object.fromEntries(DENOMS.map(d=>[d.v,0])),2:Object.fromEntries(DENOMS.map(d=>[d.v,0]))};
 const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c])),money=n=>Number(n||0).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});let profiles=[],adminToken="",photoData="",active=null,tick,pin="",loadingProfiles=false;
 function device(){let x=localStorage.getItem("cashCheckDeviceId");if(!x){x=crypto.randomUUID();localStorage.setItem("cashCheckDeviceId",x)}return x}
 function hidden(id,on){$(id).classList.toggle("hidden",on)}
@@ -27,7 +27,7 @@ function openNumberPad(type,round,v){
   if(type==="target") numberPad.original=$("round1Target").value||"";
   else numberPad.original=String(rounds[round][v]||"");
   numberPad.value=numberPad.original;
-  $("numberPadTitle").textContent=type==="target"?"กำหนดยอดเงินรอบที่ 1":`จำนวน ${DENOMS.find(d=>String(d.v)===String(v))?.l||v} ${DENOMS.find(d=>String(d.v)===String(v))?.u||""}`;
+  $("numberPadTitle").textContent=type==="target"?"กำหนดยอดเงินรอบที่ 1":(()=>{const d=DENOMS.find(x=>String(x.v)===String(v));return `จำนวน${d?.t==="coin"?"เหรียญ":"แบงค์"} ${d?.l||v}`})();
   updateNumberPadDisplay();
   hidden("numberPadModal",false);
 }
@@ -45,7 +45,7 @@ function commitNumberPad(){
   numberPad={type:null,round:null,v:null,original:"",value:""};
 }
 function cancelNumberPad(){hidden("numberPadModal",true);numberPad={type:null,round:null,v:null,original:"",value:""}}
-function render(r){let root=$(`round${r}List`),last="";root.innerHTML="";DENOMS.forEach(d=>{if(last!==d.t){last=d.t;root.insertAdjacentHTML("beforeend",`<div class="list-label">${last==='note'?'ธนบัตร':'เหรียญ'}</div>`)}root.insertAdjacentHTML("beforeend",`<div class="money-row"><div class="denom">${d.l}${d.t==="coin"?`<span class="unit">${d.u}</span>`:""}</div><div class="row-amount" id="amount-${r}-${d.v}">0.00 บาท</div><div class="counter"><button class="pressable" data-round="${r}" data-v="${d.v}" data-act="-" type="button">−</button><input type="text" inputmode="none" readonly value="0" data-numpad="count" data-round="${r}" data-v="${d.v}" aria-label="จำนวน ${d.l} ${d.u}"><button class="plus pressable" data-round="${r}" data-v="${d.v}" data-act="+" type="button">+</button></div></div>`)})}
+function render(r){let root=$(`round${r}List`),last="";root.innerHTML="";DENOMS.forEach(d=>{if(last!==d.t){last=d.t;root.insertAdjacentHTML("beforeend",`<div class="list-label">${last==='note'?'ธนบัตร':'เหรียญ'}</div>`)}root.insertAdjacentHTML("beforeend",`<div class="money-row"><div class="denom">${d.l}<span class="unit">${d.u}</span></div><div class="row-amount" id="amount-${r}-${d.v}">0.00 บาท</div><div class="counter"><button class="pressable" data-round="${r}" data-v="${d.v}" data-act="-" type="button">−</button><input type="text" inputmode="none" readonly value="0" data-numpad="count" data-round="${r}" data-v="${d.v}" aria-label="จำนวน ${d.l} ${d.u}"><button class="plus pressable" data-round="${r}" data-v="${d.v}" data-act="+" type="button">+</button></div></div>`)})}
 function total(r){return DENOMS.reduce((s,d)=>s+d.v*rounds[r][d.v],0)}
 function update(){[1,2].forEach(r=>{let t=total(r);$(`round${r}Total`).textContent=money(t);$(`break${r}`).textContent=money(t)+" บาท";DENOMS.forEach(d=>$(`amount-${r}-${d.v}`).textContent=money(d.v*rounds[r][d.v])+" บาท")});$("grandTotal").textContent=money(total(1)+total(2))}
 function clear(){[1,2].forEach(r=>DENOMS.forEach(d=>rounds[r][d.v]=0));$("round1Target").value="";document.querySelectorAll("input[data-round]").forEach(x=>x.value=0);update()}
