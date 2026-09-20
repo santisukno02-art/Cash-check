@@ -112,3 +112,18 @@ footer{font-size:9px}
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
+
+
+/* iPhone Safari zoom lock for cash keypad */
+.number-pad-grid,
+.number-pad-grid button,
+.keypad,
+.keypad button,
+.number-pad-actions button,
+.counter button {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
