@@ -97,3 +97,18 @@ footer{font-size:9px}
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
+
+
+/* Prevent iPhone Safari double-tap zoom on interactive cash keypad controls */
+.keypad,
+.keypad button,
+.number-pad-grid,
+.number-pad-grid button,
+.numeric-keypad,
+.numeric-keypad button {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}

@@ -70,3 +70,29 @@ $("resetProfileBtn").onclick=resetForm;
 $("logoutBtn").onclick=()=>end("manual");
 $("clearBtn").onclick=()=>confirm("ต้องการล้างจำนวนเงินทั้ง 2 รอบใช่หรือไม่?")&&clear();
 render(1);render(2);update();loadProfiles();restore();
+
+
+/* iPhone double-tap zoom guard */
+(function () {
+  let lastTouchEnd = 0;
+
+  document.addEventListener("touchend", function (e) {
+    const target = e.target && e.target.closest
+      ? e.target.closest(
+          ".keypad button, .number-pad-grid button, .numeric-keypad button, " +
+          ".keypad, .number-pad-grid, .numeric-keypad"
+        )
+      : null;
+
+    if (!target) return;
+
+    const now = Date.now();
+
+    // Prevent Safari from interpreting rapid taps on the keypad as double-tap zoom.
+    if (now - lastTouchEnd <= 300) {
+      e.preventDefault();
+    }
+
+    lastTouchEnd = now;
+  }, { passive: false });
+})();
